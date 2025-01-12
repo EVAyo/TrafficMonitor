@@ -17,6 +17,8 @@
 #include <map>
 #include "OpenHardwareMonitor/OpenHardwareMonitorApi.h"
 #include "PluginManager.h"
+#include "Nullable.hpp"
+#include "TaskBarDlgDrawCommon.h"
 #include "DllFunctions.h"
 
 // CTrafficMonitorApp:
@@ -100,6 +102,7 @@ public:
 
     CCriticalSection m_minitor_lib_critical;        //用于访问OpenHardwareMonitor进行线程同步的临界区对象
     //CCriticalSection m_lftable_critical;            //用于访问LfTable2进行线程同步的临界区对象
+    CLazyConstructable<class CTaskBarDlgDrawCommonSupport> m_d2d_taskbar_draw_common_support{}; // 当使用D2D渲染时自动初始化的全局依赖
 
 public:
     CTrafficMonitorApp();
@@ -165,6 +168,8 @@ private:
     bool m_checking_update{ false };        //是否正在检查更新
 
     std::map<UINT, HICON> m_menu_icons;      //菜单图标资源。key是图标资源的ID，vlaue是图标的句柄
+
+    ULONG_PTR m_gdiplusToken{};
 
 // 重写
 public:
