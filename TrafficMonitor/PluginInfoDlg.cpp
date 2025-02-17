@@ -58,8 +58,10 @@ void CPluginInfoDlg::ShowInfo()
         m_info_list.SetItemText(RI_COPYRIGHT, 1, plugin_info.Property(ITMPlugin::TMI_COPYRIGHT).c_str());
         m_info_list.SetItemText(RI_URL, 1, plugin_info.Property(ITMPlugin::TMI_URL).c_str());
         m_info_list.SetItemText(RI_VERSION, 1, plugin_info.Property(ITMPlugin::TMI_VERSION).c_str());
+        std::wstring api_version;
         if (plugin_info.plugin != nullptr)
-            m_info_list.SetItemText(RI_API_VERSION, 1, std::to_wstring(plugin_info.plugin->GetAPIVersion()).c_str());
+            api_version = std::to_wstring(plugin_info.plugin->GetAPIVersion());
+        m_info_list.SetItemText(RI_API_VERSION, 1, api_version.c_str());
     }
 
     //显示当前选择指示
@@ -110,7 +112,7 @@ BOOL CPluginInfoDlg::OnInitDialog()
 
     m_info_list.GetToolTips()->SetWindowPos(&wndTopMost, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
 
-    m_menu.LoadMenu(IDR_INFO_MENU); //装载右键菜单
+    CCommon::LoadMenuResource(m_menu, IDR_INFO_MENU); //装载右键菜单
 
     return TRUE;  // return TRUE unless you set the focus to a control
                   // 异常: OCX 属性页应返回 FALSE

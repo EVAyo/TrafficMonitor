@@ -178,6 +178,9 @@ public:
     //计算两个SYSTEMTIME结构时间的差（a-b，只保留时、分、秒）
     static SYSTEMTIME CompareSystemTime(SYSTEMTIME a, SYSTEMTIME b);
 
+    //获取从1970年1月1日到现在的毫秒数
+    static ULONGLONG GetCurrentTimeSinceEpochMilliseconds();
+
     //获取当前程序的目录
     static wstring GetModuleDir();
 
@@ -223,14 +226,14 @@ public:
     static void SetRect(CRect& rect, int x, int y, int width, int height);
 
     //从资源文件载入字符串。其中，front_str、back_str为载入字符串时需要在前面或后面添加的字符串
-    static CString LoadText(UINT id, LPCTSTR back_str = nullptr);
-    static CString LoadText(LPCTSTR front_str, UINT id, LPCTSTR back_str = nullptr);
+    static CString LoadText(const wchar_t* id, LPCTSTR back_str = nullptr);
+    static CString LoadText(LPCTSTR front_str, const wchar_t* id, LPCTSTR back_str);
 
     //安全的格式化字符串，将format_str中形如<%序号%>的字符串替换成初始化列表paras中的元素，元素支持int/double/LPCTSTR/CString格式，序号从1开始
     static CString StringFormat(LPCTSTR format_str, const std::initializer_list<CVariant>& paras);
 
     //从资源文件中载入字符串，并将资源字符串中形如<%序号%>的字符串替换成可变参数列表中的参数
-    static CString LoadTextFormat(UINT id, const std::initializer_list<CVariant>& paras);
+    static CString LoadTextFormat(const wchar_t* id, const std::initializer_list<CVariant>& paras);
 
     //将int类型转换成字符串
     //n：要转换的数值
@@ -244,6 +247,9 @@ public:
     //安全的字符串复制函数
     static void WStringCopy(wchar_t* str_dest, int dest_size, const wchar_t* str_source, int source_size = INT_MAX);
 
+    //字符串替换
+    static bool StringReplace(wstring& str, const wstring& str_old, const wstring& str_new);
+
     /// <summary>
     /// 字符串相似度算法-编辑距离法
     /// </summary>
@@ -256,13 +262,19 @@ public:
         //int[, ] d = new int[n + 1, m + 1]; // matrix
         vector<vector<int>> d(n + 1, vector<int>(m + 1));
         int cost; // cost
-                  // Step 1（如果其中一个字符串长度为0，则相似度为1）？
-                  //if (n == 0) return (double)m / max(srcString.size(), matchString.size());
-                  //if (m == 0) return (double)n / max(srcString.size(), matchString.size());
+        // Step 1（如果其中一个字符串长度为0，则相似度为1）？
+        //if (n == 0) return (double)m / max(srcString.size(), matchString.size());
+        //if (m == 0) return (double)n / max(srcString.size(), matchString.size());
         if (n == 0 || m == 0) return 0.0;   //如果其中一个字符串长度为0，则相似度为0
-                                            // Step 2
-        for (int i = 0; i <= n; d[i][0] = i++);
-        for (int j = 0; j <= m; d[0][j] = j++);
+        // Step 2
+        for (int i = 0; i <= n; i++)
+        {
+            d[i][0] = i;
+        }
+        for (int j = 0; j <= m; j++)
+        {
+            d[0][j] = j;
+        }
         // Step 3
         for (int i = 1; i <= n; i++)
         {
@@ -283,7 +295,7 @@ public:
     }
 
     //设置线程语言
-    static void SetThreadLanguage(Language language);
+    static void SetThreadLanguage(WORD language);
 
     //设置颜色模式
     static void SetColorMode(ColorMode mode);
@@ -306,6 +318,9 @@ public:
 
     //获取一个菜单项的序号
     static int GetMenuItemPosition(CMenu* pMenu, UINT id);
+
+    //从资源文件加载一个菜单，并处理文本翻译
+    static void LoadMenuResource(CMenu& menu, UINT res_id);
 
     static bool IsColorSimilar(COLORREF color1, COLORREF color2);
 
@@ -338,3 +353,101 @@ public:
     }
 
 };
+
+/**
+ * @brief 编译期获取数组长度
+ *
+ * @tparam T 数组元素类型
+ * @tparam N 编译期推断的数组长度
+ * @return constexpr std::size_t 编译期推断的数组长度
+ */
+template <typename T, std::size_t N>
+constexpr std::size_t GetArrayLength(const T (&)[N]) noexcept
+{
+    return N;
+}
+
+/**
+ * @brief 析构StaticVariableWrapper包装对象前默认执行的函数，实际上无操作
+ *
+ * @tparam T
+ */
+template <class T>
+class CDefaultStaticVariableWrapperDtor
+{
+public:
+    void operator()(T*){};
+};
+/**
+ * @brief 设计上用于静态变量包装类，用于自定义变量默认初始化后行为和析构前行为
+ *
+ * @tparam T 要被包装的类型
+ * @tparam DTOR 自定义执行析构函数前的行为
+ */
+template <class T, class DTOR = CDefaultStaticVariableWrapperDtor<T>>
+class CStaticVariableWrapper : private DTOR
+{
+private:
+    T m_content;
+
+public:
+    /**
+     * @brief 构造一个StaticVariableWrapper
+     *
+     * @tparam CTOR 自定义变量默认初始化后的函数类型
+     * @param ctor 自定义变量默认初始化后的行为，传入变量的指针作为参数
+     * @param dtor 自定义变量执行析构函数前的行为，传入变量的指针作为参数
+     */
+    template <class CTOR>
+    CStaticVariableWrapper(CTOR ctor, DTOR dtor = {})
+        : DTOR{dtor}
+    {
+        ctor(std::addressof(m_content));
+    }
+    ~CStaticVariableWrapper()
+    {
+        (*static_cast<DTOR*>(this))(std::addressof(m_content));
+    }
+    T& Get() noexcept
+    {
+        return m_content;
+    }
+    const T& Get() const noexcept
+    {
+        return m_content;
+    }
+};
+/**
+ * @brief 生成静态变量包装类的函数
+ *
+ * @tparam T 要被包装的类型
+ * @tparam CTOR 自定义变量默认初始化后的函数类型
+ * @tparam DTOR 自定义变量执行析构函数前的函数类型
+ * @param ctor 自定义变量默认初始化后的行为，传入变量的指针作为参数
+ * @param dtor 自定义变量执行析构函数前的行为，传入变量的指针作为参数
+ * @return CStaticVariableWrapper<T, DTOR> 包装后的变量，已经初始化
+ */
+template <class T, class CTOR, class DTOR = CDefaultStaticVariableWrapperDtor<T>>
+auto MakeStaticVariableWrapper(CTOR ctor, DTOR dtor = {})
+    -> CStaticVariableWrapper<T, DTOR>
+{
+    return {ctor, dtor};
+}
+
+/**
+ * @brief 调用指针指向的对象的对应类型的析构函数
+ *
+ * @tparam T 传入的移除了指针后的类型
+ * @param p_memory 指向要执行析构函数的对象的指针
+ */
+template <class T>
+void Destroy(T* p_memory)
+{
+    p_memory->~T();
+}
+
+template <class T, class... Args>
+void EmplaceAt(T* p_memory, Args&&... args)
+{
+    ::new (p_memory) T(std::forward<Args>(args)...);
+}

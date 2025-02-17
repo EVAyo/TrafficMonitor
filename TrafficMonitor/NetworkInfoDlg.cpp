@@ -235,7 +235,6 @@ BOOL CNetworkInfoDlg::OnInitDialog()
     CBaseDialog::OnInitDialog();
 
     // TODO:  在此添加额外的初始化
-    SetWindowText(CCommon::LoadText(IDS_TITLE_CONNECTION_DETIAL));
     SetIcon(theApp.GetMenuIcon(IDI_INFO), FALSE);		// 设置小图标
 
     //重新获取IP地址
@@ -294,7 +293,7 @@ BOOL CNetworkInfoDlg::OnInitDialog()
     //SetWindowPos(&wndNoTopMost, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);		//取消置顶
     m_info_list.GetToolTips()->SetWindowPos(&wndTopMost, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
 
-    m_menu.LoadMenu(IDR_INFO_MENU); //装载右键菜单
+    CCommon::LoadMenuResource(m_menu, IDR_INFO_MENU); //装载右键菜单
 
     SetTimer(CONNECTION_DETAIL_TIMER, 1000, NULL);
 

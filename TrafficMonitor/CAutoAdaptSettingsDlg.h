@@ -1,9 +1,9 @@
 ﻿#pragma once
-
+#include "BaseDialog.h"
 
 // CAutoAdaptSettingsDlg 对话框
 
-class CAutoAdaptSettingsDlg : public CDialog
+class CAutoAdaptSettingsDlg : public CBaseDialog
 {
 	DECLARE_DYNAMIC(CAutoAdaptSettingsDlg)
 
@@ -28,6 +28,8 @@ private:
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
+    virtual CString GetDialogName() const override;
+    virtual bool InitializeControls() override;
 
 	DECLARE_MESSAGE_MAP()
 public:

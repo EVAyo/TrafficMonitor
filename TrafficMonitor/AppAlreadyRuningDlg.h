@@ -1,9 +1,9 @@
 ﻿#pragma once
-
+#include "BaseDialog.h"
 
 // CAppAlreadyRuningDlg 对话框
 
-class CAppAlreadyRuningDlg : public CDialog
+class CAppAlreadyRuningDlg : public CBaseDialog
 {
     DECLARE_DYNAMIC(CAppAlreadyRuningDlg)
 
@@ -21,6 +21,7 @@ private:
 
 protected:
     virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
+    virtual CString GetDialogName() const override;
 
     DECLARE_MESSAGE_MAP()
 public:

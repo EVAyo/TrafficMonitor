@@ -9,10 +9,10 @@
 
 // CAutoAdaptSettingsDlg 对话框
 
-IMPLEMENT_DYNAMIC(CAutoAdaptSettingsDlg, CDialog)
+IMPLEMENT_DYNAMIC(CAutoAdaptSettingsDlg, CBaseDialog)
 
 CAutoAdaptSettingsDlg::CAutoAdaptSettingsDlg(TaskBarSettingData& data, CWnd* pParent /*=nullptr*/)
-	: CDialog(IDD_ATUO_ADAPT_SETTING_DIALOG, pParent), m_data(data)
+	: CBaseDialog(IDD_ATUO_ADAPT_SETTING_DIALOG, pParent), m_data(data)
 {
 
 }
@@ -42,13 +42,29 @@ int CAutoAdaptSettingsDlg::GetComboBoxSel(const CComboBox& combo_box)
 
 void CAutoAdaptSettingsDlg::DoDataExchange(CDataExchange* pDX)
 {
-	CDialog::DoDataExchange(pDX);
+	CBaseDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_DARK_MODE_DEFAULT_STYLE_COMBO, m_dark_mode_default_style_combo);
 	DDX_Control(pDX, IDC_LIGHT_MODE_DEFAULT_STYLE_COMBO, m_light_mode_default_style_combo);
 }
 
+CString CAutoAdaptSettingsDlg::GetDialogName() const
+{
+    return _T("AutoAdaptSettingsDlg");
+}
 
-BEGIN_MESSAGE_MAP(CAutoAdaptSettingsDlg, CDialog)
+bool CAutoAdaptSettingsDlg::InitializeControls()
+{
+    RepositionTextBasedControls({
+        { CtrlTextInfo::L1, IDC_DARK_MODE_STATIC },
+        { CtrlTextInfo::C0, IDC_DARK_MODE_DEFAULT_STYLE_COMBO },
+        { CtrlTextInfo::L1, IDC_LIGHT_MODE_STATIC },
+        { CtrlTextInfo::C0, IDC_LIGHT_MODE_DEFAULT_STYLE_COMBO }
+    });
+    return true;
+}
+
+
+BEGIN_MESSAGE_MAP(CAutoAdaptSettingsDlg, CBaseDialog)
 END_MESSAGE_MAP()
 
 
@@ -57,7 +73,7 @@ END_MESSAGE_MAP()
 
 BOOL CAutoAdaptSettingsDlg::OnInitDialog()
 {
-	CDialog::OnInitDialog();
+	CBaseDialog::OnInitDialog();
 
 	// TODO:  在此添加额外的初始化
 	InitComboBox(m_dark_mode_default_style_combo, m_data.dark_default_style);
@@ -82,7 +98,7 @@ void CAutoAdaptSettingsDlg::OnOK()
 	m_data.light_default_style = GetComboBoxSel(m_light_mode_default_style_combo);
     m_data.auto_save_taskbar_color_settings_to_preset = (IsDlgButtonChecked(IDC_AUTO_SAVE_TO_PRESET_CHECK) != 0);
 
-	CDialog::OnOK();
+	CBaseDialog::OnOK();
 }
 
 
@@ -92,5 +108,5 @@ BOOL CAutoAdaptSettingsDlg::PreTranslateMessage(MSG* pMsg)
     if (pMsg->message == WM_MOUSEMOVE)
         m_toolTip.RelayEvent(pMsg);
 
-    return CDialog::PreTranslateMessage(pMsg);
+    return CBaseDialog::PreTranslateMessage(pMsg);
 }

@@ -47,7 +47,6 @@ BOOL COptionsDlg::OnInitDialog()
     CBaseDialog::OnInitDialog();
 
     // TODO:  在此添加额外的初始化
-    SetWindowText(CCommon::LoadText(IDS_TITLE_OPTION));
     SetIcon(theApp.GetMenuIcon(IDI_SETTINGS), FALSE);       // 设置小图标
 
     //创建子对话框
@@ -122,7 +121,6 @@ void COptionsDlg::OnSize(UINT nType, int cx, int cy)
         //为每个子窗口设置滚动信息
         for (size_t i = 0; i < m_tab_vect.size(); i++)
         {
-            m_tab_vect[i]->ResetScroll();
             m_tab_vect[i]->SetScrollbarInfo(m_tab.m_tab_rect.Height(), m_tab_height[i]);
         }
     }
@@ -142,4 +140,8 @@ void COptionsDlg::OnBnClickedApplyButton()
 {
     m_tab2_dlg.SaveColorSettingToDefaultStyle();
     ::SendMessage(theApp.m_pMainWnd->GetSafeHwnd(), WM_SETTINGS_APPLIED, (WPARAM)this, 0);
+    for (size_t i = 0; i < m_tab_vect.size(); i++)
+    {
+        m_tab_vect[i]->OnSettingsApplied();
+    }
 }

@@ -498,6 +498,24 @@ SYSTEMTIME CCommon::CompareSystemTime(SYSTEMTIME a, SYSTEMTIME b)
     return result;
 }
 
+ULONGLONG CCommon::GetCurrentTimeSinceEpochMilliseconds()
+{
+    FILETIME fileTime;
+    GetSystemTimeAsFileTime(&fileTime);  // 获取当前系统时间
+
+    // 将FILETIME转换为ULARGE_INTEGER以便计算
+    ULARGE_INTEGER uli;
+    uli.LowPart = fileTime.dwLowDateTime;
+    uli.HighPart = fileTime.dwHighDateTime;
+
+    // 从1601年1月1日到1970年1月1日的100纳秒间隔数
+    const ULONGLONG EPOCH_OFFSET = 116444736000000000ULL;
+
+    // 转换为从1970年1月1日开始的毫秒数
+    ULONGLONG millisecondsSince1970 = (uli.QuadPart - EPOCH_OFFSET) / 10000;
+    return millisecondsSince1970;
+}
+
 wstring CCommon::GetModuleDir()
 {
     wchar_t path[MAX_PATH];
@@ -746,19 +764,17 @@ void CCommon::SetRect(CRect& rect, int x, int y, int width, int height)
     rect.bottom = y + height;
 }
 
-CString CCommon::LoadText(UINT id, LPCTSTR back_str)
+CString CCommon::LoadText(const wchar_t* id, LPCTSTR back_str)
 {
-    CString str;
-    str.LoadString(id);
+    CString str = theApp.m_str_table.LoadText(id).c_str();
     if (back_str != nullptr)
         str += back_str;
     return str;
 }
 
-CString CCommon::LoadText(LPCTSTR front_str, UINT id, LPCTSTR back_str)
+CString CCommon::LoadText(LPCTSTR front_str, const wchar_t* id, LPCTSTR back_str)
 {
-    CString str;
-    str.LoadString(id);
+    CString str = theApp.m_str_table.LoadText(id).c_str();
     if (back_str != nullptr)
         str += back_str;
     if (front_str != nullptr)
@@ -782,10 +798,9 @@ CString CCommon::StringFormat(LPCTSTR format_str, const std::initializer_list<CV
     return str_rtn;
 }
 
-CString CCommon::LoadTextFormat(UINT id, const std::initializer_list<CVariant>& paras)
+CString CCommon::LoadTextFormat(const wchar_t* id, const std::initializer_list<CVariant>& paras)
 {
-    CString str;
-    str.LoadString(id);
+    CString str = theApp.m_str_table.LoadText(id).c_str();
     return StringFormat(str.GetString(), paras);
 }
 
@@ -874,15 +889,25 @@ void CCommon::WStringCopy(wchar_t* str_dest, int dest_size, const wchar_t* str_s
         str_dest[dest_size - 1] = L'\0';
 }
 
-void CCommon::SetThreadLanguage(Language language)
+bool CCommon::StringReplace(wstring& str, const wstring& str_old, const wstring& str_new)
 {
-    switch (language)
+    if (str.empty())
+        return false;
+    bool replaced{ false };
+    size_t pos = 0;
+    while ((pos = str.find(str_old, pos)) != std::wstring::npos)
     {
-    case Language::ENGLISH: SetThreadUILanguage(MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US)); break;
-    case Language::SIMPLIFIED_CHINESE: SetThreadUILanguage(MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED)); break;
-    case Language::TRADITIONAL_CHINESE: SetThreadUILanguage(MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL)); break;
-    default: break;
+        str.replace(pos, str_old.length(), str_new);
+        replaced = true;
+        pos += str_new.length();    // 前进到替换后的字符串末尾
     }
+    return replaced;
+}
+
+void CCommon::SetThreadLanguage(WORD language)
+{
+    if (language != 0)
+        SetThreadUILanguage(language);
 }
 
 void CCommon::SetColorMode(ColorMode mode)
@@ -945,16 +970,21 @@ CString CCommon::GetTextResource(UINT id, int code_type)
     HRSRC hRes = FindResource(NULL, MAKEINTRESOURCE(id), _T("TEXT"));
     if (hRes != NULL)
     {
+        DWORD resSize = SizeofResource(NULL, hRes);  // 获取资源的大小
         HGLOBAL hglobal = LoadResource(NULL, hRes);
         if (hglobal != NULL)
         {
+            LPVOID pResourceData = LockResource(hglobal);  // 获取资源数据的指针
             if (code_type == 2)
             {
-                res_str = (const wchar_t*)hglobal;
+                // 资源是宽字符字符串
+                res_str = CString((const wchar_t*)pResourceData, resSize / sizeof(wchar_t));
             }
             else
             {
-                res_str = CCommon::StrToUnicode((const char*)hglobal, (code_type != 0)).c_str();
+                // 资源是窄字符字符串
+                std::string strData((const char*)pResourceData, resSize);
+                res_str = CCommon::StrToUnicode(strData.c_str(), (code_type != 0)).c_str();
             }
         }
     }
@@ -987,6 +1017,48 @@ int CCommon::GetMenuItemPosition(CMenu* pMenu, UINT id)
         }
     }
     return pos;
+}
+
+// 递归遍历菜单项并处理多语言翻译
+static void TranslateMenuItems(CMenu& menu)
+{
+    // 遍历菜单项
+    for (int i = 0; i < menu.GetMenuItemCount(); ++i)
+    {
+        UINT menuItemID = menu.GetMenuItemID(i);
+        CString menuText;
+        menu.GetMenuString(i, menuText, MF_BYPOSITION);
+
+        // 检查菜单项文本是否以TXT_开头
+        if (menuText.Left(4) == _T("TXT_"))
+        {
+            // 获取翻译后的文本
+            std::wstring key(menuText);
+            const std::wstring& translatedText = theApp.m_str_table.LoadMenuText(key);
+
+            // 更新菜单项文本
+            menu.ModifyMenu(i, MF_BYPOSITION | MF_STRING, menuItemID, translatedText.c_str());
+        }
+
+        if (menuItemID == -1)
+        {
+            // 这是一个弹出菜单（子菜单），递归处理
+            CMenu* pSubMenu = menu.GetSubMenu(i);
+            if (pSubMenu)
+            {
+                TranslateMenuItems(*pSubMenu); // 递归调用
+            }
+        }
+    }
+}
+
+void CCommon::LoadMenuResource(CMenu& menu, UINT res_id)
+{
+    // 加载菜单资源
+    menu.LoadMenu(res_id);
+
+    // 处理菜单项翻译
+    TranslateMenuItems(menu);
 }
 
 bool CCommon::IsColorSimilar(COLORREF color1, COLORREF color2)

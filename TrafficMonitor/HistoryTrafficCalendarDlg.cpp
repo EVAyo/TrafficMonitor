@@ -104,7 +104,6 @@ bool CHistoryTrafficCalendarDlg::IsWeekend(int index)
 
 CString CHistoryTrafficCalendarDlg::GetWeekdayString(int index)
 {
-    CString str;
     if (!theApp.m_cfg_data.m_sunday_first)
     {
         index++;
@@ -114,28 +113,21 @@ CString CHistoryTrafficCalendarDlg::GetWeekdayString(int index)
     switch (index)
     {
     case 0:
-        str.LoadString(IDS_SUNDAY);
-        break;
+        return CCommon::LoadText(IDS_SUNDAY);
     case 1:
-        str.LoadString(IDS_MONDAY);
-        break;
+        return CCommon::LoadText(IDS_MONDAY);
     case 2:
-        str.LoadString(IDS_TUESDAY);
-        break;
+        return CCommon::LoadText(IDS_TUESDAY);
     case 3:
-        str.LoadString(IDS_WEDNESDAY);
-        break;
+        return CCommon::LoadText(IDS_WEDNESDAY);
     case 4:
-        str.LoadString(IDS_THURSDAY);
-        break;
+        return CCommon::LoadText(IDS_THURSDAY);
     case 5:
-        str.LoadString(IDS_FRIDAY);
-        break;
+        return CCommon::LoadText(IDS_FRIDAY);
     case 6:
-        str.LoadString(IDS_SATURDAY);
-        break;
+        return CCommon::LoadText(IDS_SATURDAY);
     }
-    return str;
+    return CString();
 }
 
 BEGIN_MESSAGE_MAP(CHistoryTrafficCalendarDlg, CTabDlg)
@@ -187,7 +179,7 @@ BOOL CHistoryTrafficCalendarDlg::OnInitDialog()
     m_tool_tips.SetMaxTipWidth(800);        //为鼠标提示设置一个最大宽度，以允许其换行
     m_tool_tips.AddTool(this, _T(""));
 
-    m_menu.LoadMenu(IDR_HISTORY_TRAFFIC_MENU);
+    CCommon::LoadMenuResource(m_menu, IDR_HISTORY_TRAFFIC_MENU);
 
     return TRUE;  // return TRUE unless you set the focus to a control
                   // 异常: OCX 属性页应返回 FALSE

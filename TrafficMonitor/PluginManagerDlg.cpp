@@ -6,6 +6,7 @@
 #include "PluginManagerDlg.h"
 #include "FilePathHelper.h"
 #include "PluginInfoDlg.h"
+#include "WIC.h"
 
 
 // CPluginManagerDlg 对话框
@@ -61,6 +62,15 @@ CString CPluginManagerDlg::GetDialogName() const
     return _T("PluginManagerDlg");
 }
 
+bool CPluginManagerDlg::InitializeControls()
+{
+    RepositionTextBasedControls({
+        { CtrlTextInfo::L4, IDC_PLUGIN_INFO_BUTTON, CtrlTextInfo::W32 },
+        { CtrlTextInfo::L3, IDC_OPTINS_BUTTON, CtrlTextInfo::W32 }
+    });
+    return true;
+}
+
 
 BEGIN_MESSAGE_MAP(CPluginManagerDlg, CBaseDialog)
     ON_NOTIFY(NM_RCLICK, IDC_LIST1, &CPluginManagerDlg::OnNMRClickList1)
@@ -108,7 +118,12 @@ BOOL CPluginManagerDlg::OnInitDialog()
             hIcon = (HICON)plugin.plugin->GetPluginIcon();
         }
         if (hIcon == nullptr)
-            hIcon = theApp.GetMenuIcon(IDI_PLUGINS);
+        {
+            if (plugin.state == CPluginManager::PluginState::PS_DISABLE)
+                hIcon = theApp.GetMenuIcon(IDI_PLUGIN_DISABLED);
+            else
+                hIcon = theApp.GetMenuIcon(IDI_PLUGINS);
+        }
         m_plugin_icon_list.Add(hIcon);
     }
     m_list_ctrl.SetImageList(&m_plugin_icon_list, LVSIL_SMALL);
@@ -150,7 +165,15 @@ BOOL CPluginManagerDlg::OnInitDialog()
 
     EnableControl();
 
-    m_menu.LoadMenu(IDR_PLUGIN_MANAGER_MENU); //装载右键菜单
+    CCommon::LoadMenuResource(m_menu, IDR_PLUGIN_MANAGER_MENU); //装载右键菜单
+
+    //设置菜单图标
+    CMenuIcon::AddIconToMenuItem(m_menu.GetSubMenu(0)->GetSafeHmenu(), ID_PLUGIN_DETAIL, FALSE, theApp.GetMenuIcon(IDI_INFO));
+    CMenuIcon::AddIconToMenuItem(m_menu.GetSubMenu(0)->GetSafeHmenu(), ID_PLUGIN_OPTIONS, FALSE, theApp.GetMenuIcon(IDI_SETTINGS));
+
+    //设置按钮图标
+    SetButtonIcon(IDC_PLUGIN_INFO_BUTTON, theApp.GetMenuIcon(IDI_INFO));
+    SetButtonIcon(IDC_OPTINS_BUTTON, theApp.GetMenuIcon(IDI_SETTINGS));
 
     return TRUE;  // return TRUE unless you set the focus to a control
                   // 异常: OCX 属性页应返回 FALSE
@@ -166,6 +189,14 @@ void CPluginManagerDlg::OnNMRClickList1(NMHDR* pNMHDR, LRESULT* pResult)
 
     //弹出右键菜单
     CMenu* pContextMenu = m_menu.GetSubMenu(0);	//获取第一个弹出菜单
+    pContextMenu->SetDefaultItem(ID_PLUGIN_DETAIL);
+    //更新插件子菜单
+    if (m_item_selected >= 0 && m_item_selected < static_cast<int>(theApp.m_plugins.GetPlugins().size()))
+    {
+        auto plugin_info = theApp.m_plugins.GetPlugins()[m_item_selected];
+        theApp.UpdatePluginMenu(pContextMenu, plugin_info.plugin, 3);
+    }
+
     CPoint point1;	//定义一个用于确定光标位置的位置
     GetCursorPos(&point1);	//获取当前光标的位置，以便使得菜单可以跟随光标
     pContextMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point1.x, point1.y, this); //在指定位置显示弹出菜单
@@ -282,4 +313,25 @@ afx_msg LRESULT CPluginManagerDlg::OnLinkClicked(WPARAM wParam, LPARAM lParam)
     }
 
     return 0;
+}
+
+
+BOOL CPluginManagerDlg::OnCommand(WPARAM wParam, LPARAM lParam)
+{
+    UINT uMsg = LOWORD(wParam);
+    //选择了插件命令
+    if (uMsg >= ID_PLUGIN_COMMAND_START && uMsg <= ID_PLUGIN_COMMAND_MAX)
+    {
+        int index = uMsg - ID_PLUGIN_COMMAND_START;
+        if (m_item_selected >= 0 && m_item_selected < static_cast<int>(theApp.m_plugins.GetPlugins().size()))
+        {
+            ITMPlugin* plugin = theApp.m_plugins.GetPlugins()[m_item_selected].plugin;
+            if (plugin != nullptr && plugin->GetAPIVersion() >= 5)
+            {
+                plugin->OnPluginCommand(index, (void*)GetSafeHwnd(), nullptr);
+            }
+        }
+    }
+
+    return CBaseDialog::OnCommand(wParam, lParam);
 }
